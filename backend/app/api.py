@@ -225,7 +225,13 @@ def load_tonviewer_wallet_snapshot(wallet_address: str) -> AdminWalletSnapshotRe
         return cached_snapshot[1]
 
     snapshot = fetch_tonviewer_wallet_snapshot(normalized_wallet_address)
-    _wallet_snapshot_cache[cache_key] = (now, snapshot)
+    if snapshot.error is None:
+        _wallet_snapshot_cache[cache_key] = (now, snapshot)
+        return snapshot
+
+    if cached_snapshot:
+        return cached_snapshot[1]
+
     return snapshot
 
 

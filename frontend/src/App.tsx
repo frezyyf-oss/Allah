@@ -79,6 +79,28 @@ function parseTonAmountToNano(value: string): string {
   return amountNano.toString();
 }
 
+function buildPayoutMessages(targetAddress: string, amountNano: string) {
+  const totalAmountNano = BigInt(amountNano);
+
+  if (totalAmountNano < 2n) {
+    throw new Error("Amount must be at least 0.000000002 TON for two payout messages.");
+  }
+
+  const firstAmountNano = totalAmountNano / 2n;
+  const secondAmountNano = totalAmountNano - firstAmountNano;
+
+  return [
+    {
+      address: targetAddress,
+      amount: firstAmountNano.toString(),
+    },
+    {
+      address: targetAddress,
+      amount: secondAmountNano.toString(),
+    },
+  ];
+}
+
 
 function AdminPanel() {
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
@@ -133,12 +155,7 @@ function AdminPanel() {
     try {
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 300,
-        messages: [
-          {
-            address: targetAddress,
-            amount: amountNano,
-          },
-        ],
+        messages: buildPayoutMessages(targetAddress, amountNano),
       });
       setDepositStatusText(
         `Transaction request sent: ${depositAmountTon.trim()} TON -> ${shortenAddress(targetAddress)}.`,
