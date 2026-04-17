@@ -53,6 +53,11 @@ export interface HealthResponse {
   telegram_ready_url: string;
 }
 
+export interface TonUsdRate {
+  source: string;
+  usd: number;
+}
+
 export interface TelegramSessionUser {
   id: number;
   first_name: string;

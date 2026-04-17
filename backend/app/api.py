@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import base64
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from aiogram.utils.web_app import safe_parse_webapp_init_data
 from fastapi import FastAPI, Header, HTTPException
@@ -29,6 +32,9 @@ from .data import (
 ICON_PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9s3to1IAAAAASUVORK5CYII="
 )
+COINGECKO_TON_USD_URL = (
+    "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd"
+)
 
 
 class HealthResponse(BaseModel):
@@ -44,6 +50,11 @@ class TelegramSessionUser(BaseModel):
     language_code: str | None = None
     is_premium: bool = False
     auth_date: int
+
+
+class TonUsdRateResponse(BaseModel):
+    source: str
+    usd: float
 
 
 class TelegramAuthRequest(BaseModel):
@@ -109,6 +120,31 @@ def verify_admin_token(
         raise HTTPException(status_code=401, detail="Invalid admin token")
 
 
+def load_ton_usd_rate() -> TonUsdRateResponse:
+    request = Request(
+        COINGECKO_TON_USD_URL,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "Allah-Gifts/1.0",
+        },
+    )
+    try:
+        with urlopen(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=502, detail="TON/USD rate request failed") from error
+
+    ton_payload = payload.get("the-open-network")
+    usd_value = ton_payload.get("usd") if isinstance(ton_payload, dict) else None
+    if not isinstance(usd_value, (int, float)) or usd_value <= 0:
+        raise HTTPException(status_code=502, detail="TON/USD rate is invalid")
+
+    return TonUsdRateResponse(
+        source="coingecko/simple-price",
+        usd=float(usd_value),
+    )
+
+
 def create_app(settings: Settings) -> FastAPI:
     app = FastAPI(title="Allah Gifts API")
     app.add_middleware(
@@ -126,6 +162,10 @@ def create_app(settings: Settings) -> FastAPI:
             bot_enabled=bool(settings.bot_token),
             telegram_ready_url=settings.public_webapp_url or "",
         )
+
+    @app.get("/api/rates/ton-usd", response_model=TonUsdRateResponse)
+    async def ton_usd_rate() -> TonUsdRateResponse:
+        return load_ton_usd_rate()
 
     @app.post("/api/auth/telegram", response_model=TelegramAuthResponse)
     async def auth_telegram(payload: TelegramAuthRequest) -> TelegramAuthResponse:

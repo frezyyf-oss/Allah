@@ -826,6 +826,370 @@ code {
   color: var(--muted);
 }
 
+.opadmin-shell {
+  position: relative;
+  overflow: hidden;
+  width: min(1320px, calc(100vw - 24px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 28px 0 48px;
+}
+
+.opadmin-header,
+.opadmin-users,
+.opadmin-composer,
+.opadmin-kpis article {
+  position: relative;
+  z-index: 1;
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22px);
+}
+
+.opadmin-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(340px, 0.7fr);
+  gap: 22px;
+  align-items: start;
+  margin-bottom: 18px;
+  padding: 28px;
+  border-radius: 32px;
+  background:
+    linear-gradient(135deg, rgba(84, 241, 200, 0.1), transparent 40%),
+    linear-gradient(180deg, rgba(10, 16, 23, 0.94), rgba(8, 12, 18, 0.88));
+  animation: rise 0.5s ease both;
+}
+
+.opadmin-header__copy h1 {
+  margin: 8px 0 10px;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(2.4rem, 5vw, 4.6rem);
+  line-height: 0.92;
+  letter-spacing: -0.07em;
+}
+
+.opadmin-header__lede {
+  max-width: 640px;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.opadmin-header__tools {
+  display: grid;
+  gap: 14px;
+}
+
+.opadmin-token-box,
+.opadmin-wallet-box,
+.opadmin-users,
+.opadmin-composer {
+  padding: 22px;
+  border-radius: 26px;
+  background: rgba(9, 14, 20, 0.84);
+}
+
+.opadmin-token-box,
+.opadmin-wallet-box,
+.opadmin-search,
+.opadmin-field,
+.opadmin-rate-box,
+.opadmin-preview-grid article {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.opadmin-token-box,
+.opadmin-wallet-box,
+.opadmin-search,
+.opadmin-field,
+.opadmin-rate-box {
+  display: grid;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.opadmin-token-box,
+.opadmin-search,
+.opadmin-field {
+  padding: 14px;
+}
+
+.opadmin-token-box span,
+.opadmin-wallet-box span,
+.opadmin-search span,
+.opadmin-field span,
+.opadmin-rate-box span,
+.opadmin-preview-grid span,
+.opadmin-kpis span,
+.opadmin-user-card dt,
+.opadmin-toolbar__meta span,
+.opadmin-quick-wallets > span {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+}
+
+.opadmin-token-box input,
+.opadmin-search input,
+.opadmin-field input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  color: #f4f6fb;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  outline: none;
+}
+
+.opadmin-token-box input:focus,
+.opadmin-search input:focus,
+.opadmin-field input:focus {
+  border-color: rgba(140, 255, 220, 0.52);
+}
+
+.opadmin-wallet-box {
+  padding: 16px;
+}
+
+.opadmin-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.opadmin-kpis article {
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(10, 16, 23, 0.68);
+  animation: rise 0.55s ease both;
+}
+
+.opadmin-kpis strong {
+  display: block;
+  margin-top: 8px;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.4rem, 2.8vw, 2.4rem);
+  letter-spacing: -0.05em;
+}
+
+.opadmin-layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.opadmin-users,
+.opadmin-composer {
+  animation: rise 0.6s ease both;
+}
+
+.opadmin-sidebar {
+  position: sticky;
+  top: 18px;
+}
+
+.opadmin-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 18px;
+}
+
+.opadmin-section-head h2 {
+  margin: 6px 0 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.8rem;
+  letter-spacing: -0.04em;
+}
+
+.opadmin-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.opadmin-toolbar__meta {
+  display: grid;
+  gap: 8px;
+  text-align: right;
+}
+
+.opadmin-user-list {
+  display: grid;
+  gap: 12px;
+}
+
+.opadmin-user-card {
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.opadmin-user-card:hover {
+  transform: translateY(-2px);
+}
+
+.opadmin-user-card--active {
+  border-color: rgba(140, 255, 220, 0.48);
+  background: rgba(84, 241, 200, 0.08);
+}
+
+.opadmin-user-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.opadmin-user-card__head strong,
+.opadmin-preview-grid strong,
+.opadmin-rate-box strong {
+  display: block;
+  font-family: "Space Grotesk", sans-serif;
+  letter-spacing: -0.04em;
+}
+
+.opadmin-user-card__head strong {
+  margin-bottom: 6px;
+  font-size: 1.3rem;
+}
+
+.opadmin-user-card__head span,
+.opadmin-rate-box small,
+.opadmin-preview-grid small {
+  color: var(--muted);
+}
+
+.opadmin-user-card__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+}
+
+.opadmin-user-card__grid div {
+  display: grid;
+  gap: 6px;
+}
+
+.opadmin-user-card dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.opadmin-user-card__wallet {
+  grid-column: 1 / -1;
+}
+
+.opadmin-composer__stack {
+  display: grid;
+  gap: 14px;
+}
+
+.opadmin-unit-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.opadmin-unit-toggle {
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.opadmin-unit-toggle__button {
+  min-width: 72px;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 14px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.opadmin-unit-toggle__button.is-active {
+  color: #071015;
+  background: linear-gradient(90deg, var(--highlight), #b9ffe8);
+  font-weight: 800;
+}
+
+.opadmin-field--amount {
+  min-width: 0;
+}
+
+.opadmin-rate-box {
+  padding: 16px;
+  border-radius: 18px;
+}
+
+.opadmin-rate-box strong {
+  font-size: 1.5rem;
+}
+
+.opadmin-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.opadmin-preview-grid article {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.opadmin-preview-grid strong {
+  font-size: 1.18rem;
+}
+
+.opadmin-quick-wallets {
+  display: grid;
+  gap: 10px;
+}
+
+.opadmin-quick-wallets__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.opadmin-status,
+.opadmin-empty {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.opadmin-status--warn {
+  border-color: rgba(255, 143, 113, 0.24);
+  background: rgba(255, 143, 113, 0.12);
+  color: #ffd1c7;
+}
+
 @keyframes rise {
   from {
     opacity: 0;
@@ -864,6 +1228,26 @@ code {
 
   .admin-deposit-form {
     grid-template-columns: 1fr;
+  }
+
+  .opadmin-header,
+  .opadmin-layout,
+  .opadmin-kpis,
+  .opadmin-preview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .opadmin-sidebar {
+    position: static;
+  }
+
+  .opadmin-toolbar,
+  .opadmin-unit-row {
+    grid-template-columns: 1fr;
+  }
+
+  .opadmin-toolbar__meta {
+    text-align: left;
   }
 }
 
@@ -922,5 +1306,26 @@ code {
 
   .admin-panel__head {
     flex-direction: column;
+  }
+
+  .opadmin-shell {
+    width: min(100vw - 12px, 100%);
+    padding-top: 12px;
+    padding-bottom: 28px;
+  }
+
+  .opadmin-header,
+  .opadmin-users,
+  .opadmin-composer {
+    padding: 18px;
+  }
+
+  .opadmin-section-head,
+  .opadmin-user-card__head {
+    flex-direction: column;
+  }
+
+  .opadmin-user-card__grid {
+    grid-template-columns: 1fr;
   }
 }

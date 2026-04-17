@@ -8,6 +8,7 @@ import type {
   RouletteSpinResult,
   TelegramSessionUser,
   TelegramSession,
+  TonUsdRate,
 } from "../types";
 
 
@@ -36,6 +37,10 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   getHealth(): Promise<HealthResponse> {
     return requestJson<HealthResponse>("/api/health");
+  },
+
+  getTonUsdRate(): Promise<TonUsdRate> {
+    return requestJson<TonUsdRate>("/api/rates/ton-usd");
   },
 
   getCatalog(): Promise<GiftItem[]> {

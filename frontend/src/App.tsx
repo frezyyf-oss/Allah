@@ -23,6 +23,7 @@ import type {
   RouletteSpinResult,
   TelegramSession,
 } from "./types";
+import { OperatorAdminPanel } from "./OperatorAdminPanel";
 
 
 function isAdminRoute(): boolean {
@@ -835,7 +836,7 @@ function StorefrontApp() {
 
 
 function App() {
-  return isAdminRoute() ? <AdminPanel /> : <StorefrontApp />;
+  return isAdminRoute() ? <OperatorAdminPanel /> : <StorefrontApp />;
 }
 
 
