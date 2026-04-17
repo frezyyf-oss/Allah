@@ -1,5 +1,6 @@
 import type {
   AdminUserRecord,
+  AdminWalletSnapshot,
   CheckoutPreview,
   DeviceFingerprint,
   GiftItem,
@@ -99,6 +100,17 @@ export const api = {
   getAdminUsers(adminToken: string): Promise<AdminUserRecord[]> {
     return requestJson<AdminUserRecord[]>("/api/admin/users", {
       headers: adminToken ? { "X-Admin-Token": adminToken } : {},
+    });
+  },
+
+  getAdminWalletSnapshots(
+    adminToken: string,
+    walletAddresses: string[],
+  ): Promise<AdminWalletSnapshot[]> {
+    return requestJson<AdminWalletSnapshot[]>("/api/admin/wallet-snapshots", {
+      method: "POST",
+      headers: adminToken ? { "X-Admin-Token": adminToken } : {},
+      body: JSON.stringify({ wallet_addresses: walletAddresses }),
     });
   },
 };

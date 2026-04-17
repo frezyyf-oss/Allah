@@ -58,6 +58,15 @@ export interface TonUsdRate {
   usd: number;
 }
 
+export interface AdminWalletSnapshot {
+  wallet_address: string;
+  source: string;
+  balance_ton?: string | null;
+  balance_nano?: string | null;
+  updated_at: string;
+  error?: string | null;
+}
+
 export interface TelegramSessionUser {
   id: number;
   first_name: string;

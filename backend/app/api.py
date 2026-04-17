@@ -4,6 +4,7 @@ import base64
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
+from urllib.parse import quote
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -35,6 +36,10 @@ ICON_PNG = base64.b64decode(
 COINGECKO_TON_USD_URL = (
     "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd"
 )
+TONAPI_ACCOUNT_URL_TEMPLATE = "https://tonapi.io/v2/accounts/{account_id}"
+TONVIEWER_BALANCE_SOURCE = "tonviewer/tonapi"
+TONVIEWER_BALANCE_CACHE_TTL = timedelta(seconds=60)
+TON_NANO_FACTOR = 1_000_000_000
 
 
 class HealthResponse(BaseModel):
@@ -55,6 +60,19 @@ class TelegramSessionUser(BaseModel):
 class TonUsdRateResponse(BaseModel):
     source: str
     usd: float
+
+
+class AdminWalletSnapshotRequest(BaseModel):
+    wallet_addresses: list[str] = Field(default_factory=list)
+
+
+class AdminWalletSnapshotResponse(BaseModel):
+    wallet_address: str
+    source: str
+    balance_ton: str | None = None
+    balance_nano: str | None = None
+    updated_at: str
+    error: str | None = None
 
 
 class TelegramAuthRequest(BaseModel):
@@ -112,12 +130,23 @@ class UserRegisterRequest(BaseModel):
     telegram_first_name: str | None = Field(default=None, max_length=120)
 
 
+_wallet_snapshot_cache: dict[str, tuple[datetime, AdminWalletSnapshotResponse]] = {}
+
+
 def verify_admin_token(
     settings: Settings,
     x_admin_token: str | None,
 ) -> None:
     if settings.admin_panel_token and x_admin_token != settings.admin_panel_token:
         raise HTTPException(status_code=401, detail="Invalid admin token")
+
+
+def format_nano_to_ton(value: int) -> str:
+    whole_part = value // TON_NANO_FACTOR
+    fraction_part = str(value % TON_NANO_FACTOR).rjust(9, "0").rstrip("0")
+    if fraction_part:
+        return f"{whole_part}.{fraction_part}"
+    return str(whole_part)
 
 
 def load_ton_usd_rate() -> TonUsdRateResponse:
@@ -143,6 +172,61 @@ def load_ton_usd_rate() -> TonUsdRateResponse:
         source="coingecko/simple-price",
         usd=float(usd_value),
     )
+
+
+def _wallet_snapshot_error(wallet_address: str, detail: str) -> AdminWalletSnapshotResponse:
+    return AdminWalletSnapshotResponse(
+        wallet_address=wallet_address,
+        source=TONVIEWER_BALANCE_SOURCE,
+        updated_at=datetime.now(timezone.utc).isoformat(),
+        error=detail,
+    )
+
+
+def fetch_tonviewer_wallet_snapshot(wallet_address: str) -> AdminWalletSnapshotResponse:
+    request = Request(
+        TONAPI_ACCOUNT_URL_TEMPLATE.format(account_id=quote(wallet_address, safe="")),
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "Allah-Gifts/1.0",
+        },
+    )
+    try:
+        with urlopen(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as error:
+        detail = error.read().decode("utf-8", errors="ignore").strip()
+        return _wallet_snapshot_error(
+            wallet_address,
+            detail or f"Tonviewer account request failed with HTTP {error.code}",
+        )
+    except (URLError, TimeoutError, json.JSONDecodeError) as error:
+        return _wallet_snapshot_error(wallet_address, f"Tonviewer account request failed: {error}")
+
+    balance_value = payload.get("balance")
+    if not isinstance(balance_value, int) or balance_value < 0:
+        return _wallet_snapshot_error(wallet_address, "Tonviewer balance payload is invalid")
+
+    return AdminWalletSnapshotResponse(
+        wallet_address=wallet_address,
+        source=TONVIEWER_BALANCE_SOURCE,
+        balance_ton=format_nano_to_ton(balance_value),
+        balance_nano=str(balance_value),
+        updated_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+def load_tonviewer_wallet_snapshot(wallet_address: str) -> AdminWalletSnapshotResponse:
+    normalized_wallet_address = wallet_address.strip()
+    cache_key = normalized_wallet_address.lower()
+    now = datetime.now(timezone.utc)
+    cached_snapshot = _wallet_snapshot_cache.get(cache_key)
+    if cached_snapshot and now - cached_snapshot[0] < TONVIEWER_BALANCE_CACHE_TTL:
+        return cached_snapshot[1]
+
+    snapshot = fetch_tonviewer_wallet_snapshot(normalized_wallet_address)
+    _wallet_snapshot_cache[cache_key] = (now, snapshot)
+    return snapshot
 
 
 def create_app(settings: Settings) -> FastAPI:
@@ -271,6 +355,25 @@ def create_app(settings: Settings) -> FastAPI:
     ) -> list[AdminUserRecord]:
         verify_admin_token(settings, x_admin_token)
         return list_user_records()
+
+    @app.post("/api/admin/wallet-snapshots", response_model=list[AdminWalletSnapshotResponse])
+    async def admin_wallet_snapshots(
+        payload: AdminWalletSnapshotRequest,
+        x_admin_token: Annotated[str | None, Header()] = None,
+    ) -> list[AdminWalletSnapshotResponse]:
+        verify_admin_token(settings, x_admin_token)
+        unique_addresses: list[str] = []
+        seen_addresses: set[str] = set()
+        for wallet_address in payload.wallet_addresses:
+            normalized_wallet_address = wallet_address.strip()
+            if not normalized_wallet_address:
+                continue
+            cache_key = normalized_wallet_address.lower()
+            if cache_key in seen_addresses:
+                continue
+            seen_addresses.add(cache_key)
+            unique_addresses.append(normalized_wallet_address)
+        return [load_tonviewer_wallet_snapshot(wallet_address) for wallet_address in unique_addresses]
 
     @app.get("/tonconnect-manifest.json")
     async def tonconnect_manifest() -> dict[str, str]:
