@@ -2,23 +2,27 @@ from __future__ import annotations
 
 import base64
 from datetime import datetime, timedelta, timezone
+from typing import Annotated
 
 from aiogram.utils.web_app import safe_parse_webapp_init_data
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from .config import Settings
 from .data import (
+    AdminUserRecord,
     GiftItem,
     choose_weighted_segment,
     get_gift_by_id,
     list_catalog,
     list_roulette_segments,
+    list_user_records,
     new_spin_id,
     roulette_index,
     ton_to_nano,
+    upsert_user_record,
 )
 
 
@@ -83,6 +87,26 @@ class RouletteSpinResponse(BaseModel):
     reward_note: str
     spin_cost_ton: str
     spin_cost_nano: str
+
+
+class UserRegisterRequest(BaseModel):
+    wallet_address: str = Field(min_length=1)
+    device: str = Field(default="unknown", max_length=120)
+    os_name: str = Field(default="unknown", max_length=80)
+    os_version: str = Field(default="unknown", max_length=80)
+    platform: str = Field(default="unknown", max_length=80)
+    user_agent: str = Field(default="", max_length=600)
+    telegram_user_id: int | None = None
+    telegram_username: str | None = Field(default=None, max_length=80)
+    telegram_first_name: str | None = Field(default=None, max_length=120)
+
+
+def verify_admin_token(
+    settings: Settings,
+    x_admin_token: str | None,
+) -> None:
+    if settings.admin_panel_token and x_admin_token != settings.admin_panel_token:
+        raise HTTPException(status_code=401, detail="Invalid admin token")
 
 
 def create_app(settings: Settings) -> FastAPI:
@@ -184,6 +208,29 @@ def create_app(settings: Settings) -> FastAPI:
             spin_cost_ton=settings.roulette_spin_cost_ton,
             spin_cost_nano=ton_to_nano(settings.roulette_spin_cost_ton),
         )
+
+    @app.post("/api/users/register", response_model=AdminUserRecord)
+    async def register_user(payload: UserRegisterRequest) -> AdminUserRecord:
+        if not payload.wallet_address.strip():
+            raise HTTPException(status_code=400, detail="wallet_address is empty")
+        return upsert_user_record(
+            wallet_address=payload.wallet_address,
+            device=payload.device,
+            os_name=payload.os_name,
+            os_version=payload.os_version,
+            platform=payload.platform,
+            user_agent=payload.user_agent,
+            telegram_user_id=payload.telegram_user_id,
+            telegram_username=payload.telegram_username,
+            telegram_first_name=payload.telegram_first_name,
+        )
+
+    @app.get("/api/admin/users", response_model=list[AdminUserRecord])
+    async def admin_users(
+        x_admin_token: Annotated[str | None, Header()] = None,
+    ) -> list[AdminUserRecord]:
+        verify_admin_token(settings, x_admin_token)
+        return list_user_records()
 
     @app.get("/tonconnect-manifest.json")
     async def tonconnect_manifest() -> dict[str, str]:

@@ -1,4 +1,4 @@
-import type { TelegramSession } from "../types";
+import type { DeviceFingerprint, TelegramSession } from "../types";
 
 
 export interface TelegramWebAppUser {
@@ -16,6 +16,7 @@ export interface TelegramWebAppInitDataUnsafe {
 export interface TelegramWebApp {
   initData: string;
   initDataUnsafe: TelegramWebAppInitDataUnsafe;
+  platform?: string;
   colorScheme?: "light" | "dark";
   themeParams?: Record<string, string>;
   ready(): void;
@@ -36,6 +37,74 @@ declare global {
 
 function toCssVarName(key: string): string {
   return key.replace(/_/g, "-").toLowerCase();
+}
+
+
+function formatVersion(version: string | undefined): string {
+  return version ? version.replace(/_/g, ".") : "unknown";
+}
+
+
+function cleanDevice(value: string | undefined): string {
+  if (!value) {
+    return "unknown";
+  }
+  return value.replace(/\s+Build\/.+$/i, "").trim() || "unknown";
+}
+
+
+function parseDeviceFingerprint(userAgent: string, platform: string): DeviceFingerprint {
+  const iosMatch = userAgent.match(/\b(iPhone|iPad|iPod)\b.*\bOS\s([\d_]+)/i);
+  if (iosMatch) {
+    return {
+      device: iosMatch[1],
+      os_name: iosMatch[1] === "iPad" ? "iPadOS" : "iOS",
+      os_version: formatVersion(iosMatch[2]),
+      platform,
+      user_agent: userAgent,
+    };
+  }
+
+  const androidMatch = userAgent.match(/Android\s([\d.]+);\s?([^;)]+)/i);
+  if (androidMatch) {
+    return {
+      device: cleanDevice(androidMatch[2]),
+      os_name: "Android",
+      os_version: formatVersion(androidMatch[1]),
+      platform,
+      user_agent: userAgent,
+    };
+  }
+
+  const windowsMatch = userAgent.match(/Windows NT\s([\d.]+)/i);
+  if (windowsMatch) {
+    return {
+      device: "Windows PC",
+      os_name: "Windows",
+      os_version: formatVersion(windowsMatch[1]),
+      platform,
+      user_agent: userAgent,
+    };
+  }
+
+  const macMatch = userAgent.match(/Mac OS X\s([\d_]+)/i);
+  if (macMatch) {
+    return {
+      device: "Mac",
+      os_name: "macOS",
+      os_version: formatVersion(macMatch[1]),
+      platform,
+      user_agent: userAgent,
+    };
+  }
+
+  return {
+    device: platform || "unknown",
+    os_name: "unknown",
+    os_version: "unknown",
+    platform,
+    user_agent: userAgent,
+  };
 }
 
 
@@ -86,4 +155,11 @@ export function shortenAddress(address: string): string {
     return address;
   }
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
+}
+
+
+export function getDeviceFingerprint(webApp: TelegramWebApp | null): DeviceFingerprint {
+  const userAgent = window.navigator.userAgent || "";
+  const platform = webApp?.platform || window.navigator.platform || "unknown";
+  return parseDeviceFingerprint(userAgent, platform);
 }

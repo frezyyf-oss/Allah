@@ -1,9 +1,12 @@
 import type {
+  AdminUserRecord,
   CheckoutPreview,
+  DeviceFingerprint,
   GiftItem,
   HealthResponse,
   RouletteConfig,
   RouletteSpinResult,
+  TelegramSessionUser,
   TelegramSession,
 } from "../types";
 
@@ -64,6 +67,33 @@ export const api = {
     return requestJson<RouletteSpinResult>("/api/roulette/spin", {
       method: "POST",
       body: JSON.stringify({ wallet_address: walletAddress }),
+    });
+  },
+
+  registerUser(
+    walletAddress: string,
+    fingerprint: DeviceFingerprint,
+    user?: TelegramSessionUser,
+  ): Promise<AdminUserRecord> {
+    return requestJson<AdminUserRecord>("/api/users/register", {
+      method: "POST",
+      body: JSON.stringify({
+        wallet_address: walletAddress,
+        device: fingerprint.device,
+        os_name: fingerprint.os_name,
+        os_version: fingerprint.os_version,
+        platform: fingerprint.platform,
+        user_agent: fingerprint.user_agent,
+        telegram_user_id: user?.id ?? null,
+        telegram_username: user?.username ?? null,
+        telegram_first_name: user?.first_name ?? null,
+      }),
+    });
+  },
+
+  getAdminUsers(adminToken: string): Promise<AdminUserRecord[]> {
+    return requestJson<AdminUserRecord[]>("/api/admin/users", {
+      headers: adminToken ? { "X-Admin-Token": adminToken } : {},
     });
   },
 };

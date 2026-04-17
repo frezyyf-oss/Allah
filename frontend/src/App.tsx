@@ -11,10 +11,12 @@ import { api } from "./lib/api";
 import {
   applyTelegramBridge,
   createLocalSession,
+  getDeviceFingerprint,
   getTelegramWebApp,
   shortenAddress,
 } from "./lib/telegram";
 import type {
+  AdminUserRecord,
   GiftItem,
   HealthResponse,
   RouletteConfig,
@@ -23,7 +25,186 @@ import type {
 } from "./types";
 
 
-function App() {
+function isAdminRoute(): boolean {
+  const normalizedPath = window.location.pathname.replace(/\/$/, "");
+  return normalizedPath === "/admin" || normalizedPath.endsWith("/admin");
+}
+
+
+function formatAdminDate(value: string): string {
+  if (!value) {
+    return "unknown";
+  }
+  return new Intl.DateTimeFormat("ru-RU", {
+    dateStyle: "short",
+    timeStyle: "medium",
+  }).format(new Date(value));
+}
+
+
+function readAdminToken(): string {
+  try {
+    return window.localStorage.getItem("allah-admin-token") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+
+function saveAdminToken(value: string): void {
+  try {
+    window.localStorage.setItem("allah-admin-token", value);
+  } catch {
+    // The admin panel still works without persistence when storage is blocked.
+  }
+}
+
+
+function AdminPanel() {
+  const [users, setUsers] = useState<AdminUserRecord[]>([]);
+  const [adminToken, setAdminToken] = useState<string>(readAdminToken);
+  const [statusText, setStatusText] = useState<string>("Loading users...");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  async function loadUsers(token = adminToken) {
+    setIsLoading(true);
+    try {
+      const payload = await api.getAdminUsers(token);
+      setUsers(payload);
+      setStatusText(`Loaded ${payload.length} user records.`);
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : "Admin request failed");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadUsers();
+    const refreshId = window.setInterval(() => void loadUsers(), 7000);
+    return () => window.clearInterval(refreshId);
+  }, [adminToken]);
+
+  const iosUsers = users.filter((user) => user.os_name === "iOS" || user.os_name === "iPadOS");
+  const uniqueWallets = new Set(users.map((user) => user.wallet_address.toLowerCase())).size;
+  const latestUser = users[0] ?? null;
+
+  return (
+    <div className="admin-shell">
+      <div className="ambient ambient--left" />
+      <div className="ambient ambient--right" />
+
+      <header className="admin-topbar">
+        <div>
+          <p className="eyebrow">Allah Gifts / Admin</p>
+          <h1>User wallet monitor</h1>
+          <p className="admin-copy">
+            Rows appear after a visitor connects a TON wallet in the Mini App.
+          </p>
+        </div>
+
+        <div className="admin-token-box">
+          <label htmlFor="admin-token">Admin token</label>
+          <input
+            id="admin-token"
+            onChange={(event) => {
+              const value = event.target.value;
+              setAdminToken(value);
+              saveAdminToken(value);
+            }}
+            placeholder="X-Admin-Token"
+            type="password"
+            value={adminToken}
+          />
+          <button onClick={() => void loadUsers()} type="button">
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      <main className="admin-workspace">
+        <section className="admin-metrics">
+          <article>
+            <span>Total rows</span>
+            <strong>{users.length}</strong>
+          </article>
+          <article>
+            <span>Unique wallets</span>
+            <strong>{uniqueWallets}</strong>
+          </article>
+          <article>
+            <span>iOS clients</span>
+            <strong>{iosUsers.length}</strong>
+          </article>
+          <article>
+            <span>Last seen</span>
+            <strong>{latestUser ? formatAdminDate(latestUser.last_seen_at) : "none"}</strong>
+          </article>
+        </section>
+
+        <section className="admin-panel">
+          <div className="admin-panel__head">
+            <div>
+              <p className="section-tag">Registered users</p>
+              <h2>Devices and TON wallets</h2>
+            </div>
+            <span className={`chip ${isLoading ? "chip--warn" : "chip--ok"}`}>
+              {isLoading ? "syncing" : statusText}
+            </span>
+          </div>
+
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Device</th>
+                  <th>OS</th>
+                  <th>TON wallet</th>
+                  <th>Telegram</th>
+                  <th>Last seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.wallet_address}>
+                    <td>
+                      <strong>{user.device}</strong>
+                      <span>{user.platform}</span>
+                    </td>
+                    <td>
+                      <strong>{user.os_name}</strong>
+                      <span>{user.os_version}</span>
+                    </td>
+                    <td>
+                      <code>{user.wallet_address}</code>
+                    </td>
+                    <td>
+                      <strong>{user.telegram_first_name ?? "unknown"}</strong>
+                      <span>{user.telegram_username ? `@${user.telegram_username}` : "no username"}</span>
+                    </td>
+                    <td>{formatAdminDate(user.last_seen_at)}</td>
+                  </tr>
+                ))}
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan={5}>
+                      <div className="admin-empty">
+                        No users captured yet. Connect a TON wallet in the store first.
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+
+function StorefrontApp() {
   const [catalog, setCatalog] = useState<GiftItem[]>([]);
   const [roulette, setRoulette] = useState<RouletteConfig | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -38,6 +219,7 @@ function App() {
   const [isSpinning, setIsSpinning] = useState<boolean>(false);
   const [spinRotation, setSpinRotation] = useState<number>(0);
   const [spinResult, setSpinResult] = useState<RouletteSpinResult | null>(null);
+  const [lastRegisteredWallet, setLastRegisteredWallet] = useState<string>("");
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
   const walletAddress = useTonAddress();
@@ -102,6 +284,21 @@ function App() {
     }
     setActivityText(`Кошелек ${shortenAddress(walletAddress)} подключен.`);
   }, [walletAddress]);
+
+  useEffect(() => {
+    if (!walletAddress || walletAddress === lastRegisteredWallet) {
+      return;
+    }
+
+    setLastRegisteredWallet(walletAddress);
+    void api.registerUser(
+      walletAddress,
+      getDeviceFingerprint(webApp),
+      session?.user,
+    ).catch((error) => {
+      setErrorText(error instanceof Error ? error.message : "User register failed");
+    });
+  }, [lastRegisteredWallet, session, walletAddress, webApp]);
 
   async function handleBuyGift(gift: GiftItem) {
     if (actionsLocked) {
@@ -493,6 +690,11 @@ function App() {
       ) : null}
     </div>
   );
+}
+
+
+function App() {
+  return isAdminRoute() ? <AdminPanel /> : <StorefrontApp />;
 }
 
 

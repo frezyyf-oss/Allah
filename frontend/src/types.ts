@@ -66,3 +66,20 @@ export interface TelegramSession {
   mode: "telegram" | "local";
   user: TelegramSessionUser;
 }
+
+export interface DeviceFingerprint {
+  device: string;
+  os_name: string;
+  os_version: string;
+  platform: string;
+  user_agent: string;
+}
+
+export interface AdminUserRecord extends DeviceFingerprint {
+  wallet_address: string;
+  telegram_user_id?: number | null;
+  telegram_username?: string | null;
+  telegram_first_name?: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+}

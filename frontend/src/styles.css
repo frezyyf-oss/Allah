@@ -542,6 +542,204 @@ code {
   color: var(--muted);
 }
 
+.admin-shell {
+  position: relative;
+  overflow: hidden;
+  width: min(1240px, calc(100vw - 24px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 28px 0 48px;
+}
+
+.admin-topbar,
+.admin-panel,
+.admin-metrics article {
+  position: relative;
+  z-index: 1;
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22px);
+}
+
+.admin-topbar {
+  display: grid;
+  grid-template-columns: 1fr minmax(260px, 360px);
+  gap: 22px;
+  align-items: end;
+  margin-bottom: 18px;
+  padding: 28px;
+  border-radius: 30px;
+  background:
+    linear-gradient(135deg, rgba(84, 241, 200, 0.12), transparent 38%),
+    rgba(10, 16, 23, 0.82);
+  animation: rise 0.5s ease both;
+}
+
+.admin-topbar h1 {
+  margin: 8px 0 10px;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(2.2rem, 5vw, 4.8rem);
+  line-height: 0.9;
+  letter-spacing: -0.07em;
+}
+
+.admin-copy {
+  max-width: 620px;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.admin-token-box {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-token-box label {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.72rem;
+}
+
+.admin-token-box input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  color: #f4f6fb;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  outline: none;
+}
+
+.admin-token-box input:focus {
+  border-color: rgba(140, 255, 220, 0.52);
+}
+
+.admin-token-box button {
+  min-height: 46px;
+  border: 0;
+  border-radius: 999px;
+  color: #071015;
+  background: linear-gradient(90deg, var(--highlight), #b9ffe8);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-workspace {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 18px;
+}
+
+.admin-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-metrics article {
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(10, 16, 23, 0.68);
+  animation: rise 0.55s ease both;
+}
+
+.admin-metrics span,
+.admin-table th,
+.admin-table td span {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+}
+
+.admin-metrics strong {
+  display: block;
+  margin-top: 8px;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.4rem, 2.8vw, 2.5rem);
+  letter-spacing: -0.05em;
+}
+
+.admin-panel {
+  padding: 22px;
+  border-radius: 28px;
+  background: var(--panel-bg);
+  animation: rise 0.6s ease both;
+}
+
+.admin-panel__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 18px;
+}
+
+.admin-panel__head h2 {
+  margin: 6px 0 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.8rem;
+  letter-spacing: -0.04em;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.admin-table th {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-table tr {
+  transition: background 160ms ease;
+}
+
+.admin-table tbody tr:hover {
+  background: rgba(140, 255, 220, 0.05);
+}
+
+.admin-table td {
+  vertical-align: top;
+}
+
+.admin-table td strong,
+.admin-table td span {
+  display: block;
+}
+
+.admin-table td strong {
+  margin-bottom: 6px;
+}
+
+.admin-table code {
+  white-space: nowrap;
+}
+
+.admin-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+}
+
 @keyframes rise {
   from {
     opacity: 0;
@@ -572,6 +770,11 @@ code {
   .detail-rail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .admin-topbar,
+  .admin-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -601,5 +804,25 @@ code {
 
   .gift-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-shell {
+    width: min(100vw - 12px, 100%);
+    padding-top: 12px;
+    padding-bottom: 28px;
+  }
+
+  .admin-topbar,
+  .admin-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-topbar,
+  .admin-panel {
+    padding: 18px;
+  }
+
+  .admin-panel__head {
+    flex-direction: column;
   }
 }

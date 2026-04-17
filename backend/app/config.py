@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     backend_port: int = 8000
     ton_receiver_address: str = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
     roulette_spin_cost_ton: str = "0.35"
+    admin_panel_token: str = ""
 
     model_config = SettingsConfigDict(
         env_file=ROOT_DIR / ".env",

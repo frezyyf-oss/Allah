@@ -34,3 +34,15 @@ The static TON Connect manifest is served from:
 ```text
 https://frezyyf-oss.github.io/Allah/tonconnect-manifest.json
 ```
+
+## Admin panel
+
+Open the admin panel at:
+
+```text
+https://frezyyf-oss.github.io/Allah/admin
+```
+
+The panel reads users from `GET /api/admin/users`.
+The Mini App writes a row to `POST /api/users/register` after a TON wallet address appears in `useTonAddress()`.
+Set `ADMIN_PANEL_TOKEN` in `.env` to require the same value in the admin panel token field.

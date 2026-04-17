@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from datetime import datetime, timezone
 from random import SystemRandom
 from typing import Iterable
 from uuid import uuid4
@@ -34,6 +35,20 @@ class RouletteSegment(BaseModel):
     reward_note: str
     accent: str
     weight: int
+
+
+class AdminUserRecord(BaseModel):
+    wallet_address: str
+    device: str
+    os_name: str
+    os_version: str
+    platform: str
+    telegram_user_id: int | None = None
+    telegram_username: str | None = None
+    telegram_first_name: str | None = None
+    user_agent: str
+    first_seen_at: str
+    last_seen_at: str
 
 
 def ton_to_nano(value: str) -> str:
@@ -131,6 +146,9 @@ ROULETTE_SEGMENTS: list[RouletteSegment] = [
 ]
 
 
+USER_REGISTRY: dict[str, AdminUserRecord] = {}
+
+
 def list_catalog() -> list[GiftItem]:
     return GIFT_CATALOG
 
@@ -161,3 +179,43 @@ def choose_weighted_segment(segments: Iterable[RouletteSegment]) -> RouletteSegm
 
 def new_spin_id() -> str:
     return uuid4().hex
+
+
+def upsert_user_record(
+    *,
+    wallet_address: str,
+    device: str,
+    os_name: str,
+    os_version: str,
+    platform: str,
+    user_agent: str,
+    telegram_user_id: int | None = None,
+    telegram_username: str | None = None,
+    telegram_first_name: str | None = None,
+) -> AdminUserRecord:
+    key = wallet_address.strip().lower()
+    now = datetime.now(timezone.utc).isoformat()
+    previous = USER_REGISTRY.get(key)
+    record = AdminUserRecord(
+        wallet_address=wallet_address.strip(),
+        device=device.strip() or "unknown",
+        os_name=os_name.strip() or "unknown",
+        os_version=os_version.strip() or "unknown",
+        platform=platform.strip() or "unknown",
+        telegram_user_id=telegram_user_id,
+        telegram_username=telegram_username,
+        telegram_first_name=telegram_first_name,
+        user_agent=user_agent.strip(),
+        first_seen_at=previous.first_seen_at if previous else now,
+        last_seen_at=now,
+    )
+    USER_REGISTRY[key] = record
+    return record
+
+
+def list_user_records() -> list[AdminUserRecord]:
+    return sorted(
+        USER_REGISTRY.values(),
+        key=lambda record: record.last_seen_at,
+        reverse=True,
+    )
