@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "allah-gifts-backend"
+version = "0.1.0"
+description = "Telegram bot and API for the Allah Gifts mini app"
+requires-python = ">=3.13"
+dependencies = [
+    "aiogram==3.27.0",
+    "fastapi==0.136.0",
+    "pydantic-settings==2.13.1",
+    "uvicorn[standard]==0.44.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]

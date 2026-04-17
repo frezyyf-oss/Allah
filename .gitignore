@@ -1,0 +1,12 @@
+.venv/
+.idea/
+__pycache__/
+*.pyc
+.env
+backend/*.egg-info/
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
