@@ -1194,16 +1194,16 @@ code {
   width: min(1380px, calc(100vw - 32px));
   margin: 0 auto;
   padding: 24px 0 40px;
-  color: #171717;
+  color: #f5f5f5;
 }
 
 .opside-frame {
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
   min-height: calc(100vh - 64px);
-  border: 1px solid rgba(23, 23, 23, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 32px;
-  background: #f5f1e8;
+  background: #050505;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
   overflow: hidden;
 }
@@ -1213,10 +1213,8 @@ code {
   align-content: start;
   gap: 14px;
   padding: 26px 18px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(245, 241, 232, 0.92)),
-    #ebe5d9;
-  border-right: 1px solid rgba(23, 23, 23, 0.08);
+  background: #050505;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .opside-brand h1,
@@ -1243,7 +1241,7 @@ code {
   font-size: 0.74rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(23, 23, 23, 0.46);
+  color: rgba(255, 255, 255, 0.44);
 }
 
 .opside-brand__copy,
@@ -1252,7 +1250,7 @@ code {
 .opside-payout__copy,
 .opside-summary small,
 .opside-empty {
-  color: rgba(23, 23, 23, 0.58);
+  color: rgba(255, 255, 255, 0.62);
   line-height: 1.55;
 }
 
@@ -1276,14 +1274,14 @@ code {
   padding: 0 16px;
   border-radius: 16px;
   background: transparent;
-  color: rgba(23, 23, 23, 0.72);
+  color: rgba(255, 255, 255, 0.72);
   font-weight: 700;
   text-align: left;
 }
 
 .opside-nav__item.is-active {
-  background: #171717;
-  color: #f5f1e8;
+  background: #ffffff;
+  color: #050505;
 }
 
 .opside-sidecard,
@@ -1291,9 +1289,9 @@ code {
 .opside-payout,
 .opside-stat,
 .opside-report {
-  border: 1px solid rgba(23, 23, 23, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.66);
+  background: #0d0d0d;
 }
 
 .opside-sidecard {
@@ -1321,23 +1319,23 @@ code {
   width: 100%;
   min-height: 46px;
   padding: 0 14px;
-  border: 1px solid rgba(23, 23, 23, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #171717;
+  background: #121212;
+  color: #f5f5f5;
   outline: none;
 }
 
 .opside-field input:focus {
-  border-color: #171717;
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .opside-button {
   min-height: 46px;
   padding: 0 18px;
   border-radius: 999px;
-  background: #171717;
-  color: #f5f1e8;
+  background: #ffffff;
+  color: #050505;
   font-weight: 800;
 }
 
@@ -1356,8 +1354,9 @@ code {
 }
 
 .opside-button--secondary {
-  background: #e7dfcf;
-  color: #171717;
+  background: #141414;
+  color: #f5f5f5;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .opside-button--wide {
@@ -1369,7 +1368,7 @@ code {
   align-content: start;
   gap: 18px;
   padding: 26px;
-  background: linear-gradient(180deg, #fcfaf6 0%, #f3eee4 100%);
+  background: #080808;
 }
 
 .opside-head {
@@ -1378,7 +1377,7 @@ code {
   gap: 18px;
   align-items: end;
   padding-bottom: 14px;
-  border-bottom: 1px solid rgba(23, 23, 23, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .opside-head h2 {
@@ -1416,8 +1415,8 @@ code {
 }
 
 .opside-target.is-active {
-  background: #fffdf8;
-  border-color: rgba(23, 23, 23, 0.1);
+  background: #141414;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .opside-target__copy strong,
@@ -1459,10 +1458,11 @@ code {
   min-height: 34px;
   padding: 0 12px;
   border-radius: 999px;
-  background: #171717;
-  color: #f5f1e8;
+  background: #141414;
+  color: #f5f5f5;
   font-size: 0.82rem;
   font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .opside-unit {
@@ -1477,8 +1477,8 @@ code {
   gap: 6px;
   padding: 6px;
   border-radius: 16px;
-  border: 1px solid rgba(23, 23, 23, 0.1);
-  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #121212;
 }
 
 .opside-unit__button {
@@ -1487,13 +1487,13 @@ code {
   padding: 0 14px;
   border-radius: 12px;
   background: transparent;
-  color: rgba(23, 23, 23, 0.62);
+  color: rgba(255, 255, 255, 0.62);
   font-weight: 800;
 }
 
 .opside-unit__button.is-active {
-  background: #171717;
-  color: #f5f1e8;
+  background: #ffffff;
+  color: #050505;
 }
 
 .opside-field--compact {
@@ -1505,8 +1505,8 @@ code {
   gap: 10px;
   padding: 14px;
   border-radius: 18px;
-  background: #fffdf8;
-  border: 1px solid rgba(23, 23, 23, 0.08);
+  background: #121212;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .opside-summary div {
@@ -1518,19 +1518,19 @@ code {
 .opside-empty {
   padding: 14px 16px;
   border-radius: 16px;
-  border: 1px solid rgba(23, 23, 23, 0.08);
-  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #121212;
 }
 
 .opside-status {
   margin: 0;
-  color: rgba(23, 23, 23, 0.68);
+  color: rgba(255, 255, 255, 0.68);
 }
 
 .opside-status--warn {
-  border-color: rgba(184, 76, 33, 0.2);
-  background: rgba(184, 76, 33, 0.08);
-  color: #8c3b1a;
+  border-color: rgba(255, 255, 255, 0.16);
+  background: #171717;
+  color: #f5f5f5;
 }
 
 .opside-stats {
@@ -1562,7 +1562,7 @@ code {
   grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
   gap: 18px;
   padding: 16px 18px;
-  border-bottom: 1px solid rgba(23, 23, 23, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .opside-report__row:last-child {
@@ -1637,7 +1637,7 @@ code {
 
   .opside-sidebar {
     border-right: 0;
-    border-bottom: 1px solid rgba(23, 23, 23, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .opside-head,

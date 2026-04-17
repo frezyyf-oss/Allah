@@ -1,8 +1,6 @@
 import {
-  TonConnectButton,
   useTonAddress,
   useTonConnectUI,
-  useTonWallet,
 } from "@tonconnect/ui-react";
 import { useEffect, useState } from "react";
 
@@ -140,7 +138,6 @@ export function OperatorAdminPanel() {
   const [isPayoutPending, setIsPayoutPending] = useState<boolean>(false);
   const [tonUsdRate, setTonUsdRate] = useState<TonUsdRate | null>(null);
   const [tonConnectUI] = useTonConnectUI();
-  const adminWallet = useTonWallet();
   const adminWalletAddress = useTonAddress();
 
   async function loadUsers(token = adminToken) {
@@ -317,17 +314,6 @@ export function OperatorAdminPanel() {
             <button className="opside-button opside-button--secondary" onClick={() => void handleRefresh()} type="button">
               Обновить
             </button>
-          </section>
-
-          <section className="opside-sidecard">
-            <span className="opside-sidecard__label">Admin wallet</span>
-            <TonConnectButton />
-            <p className="opside-sidecard__value">
-              {adminWalletAddress ? shortenAddress(adminWalletAddress) : "wallet required"}
-            </p>
-            <p className="opside-sidecard__hint">
-              {adminWallet ? "Кошелек подключен." : "Подключи кошелек перед депом."}
-            </p>
           </section>
 
           <section className="opside-sidecard">
