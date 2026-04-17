@@ -45,7 +45,10 @@ jobs:
           VITE_TWA_RETURN_URL: ${{ vars.VITE_TWA_RETURN_URL }}
 
       - name: Add Pages SPA fallback
-        run: cp dist/index.html dist/404.html
+        run: |
+          cp dist/index.html dist/404.html
+          mkdir -p dist/admin
+          cp dist/index.html dist/admin/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
