@@ -60,11 +60,38 @@ function saveAdminToken(value: string): void {
 }
 
 
+function parseTonAmountToNano(value: string): string {
+  const normalized = value.trim().replace(",", ".");
+  if (!/^\d+(?:\.\d{1,9})?$/.test(normalized)) {
+    throw new Error("Amount must be a TON value with up to 9 decimals.");
+  }
+
+  const [wholePart, fractionPart = ""] = normalized.split(".");
+  const wholeNano = BigInt(wholePart) * 1_000_000_000n;
+  const fractionNano = BigInt((fractionPart + "000000000").slice(0, 9));
+  const amountNano = wholeNano + fractionNano;
+
+  if (amountNano <= 0n) {
+    throw new Error("Amount must be greater than 0 TON.");
+  }
+
+  return amountNano.toString();
+}
+
+
 function AdminPanel() {
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [adminToken, setAdminToken] = useState<string>(readAdminToken);
   const [statusText, setStatusText] = useState<string>("Loading users...");
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isDepositOpen, setIsDepositOpen] = useState<boolean>(false);
+  const [depositWalletAddress, setDepositWalletAddress] = useState<string>("");
+  const [depositAmountTon, setDepositAmountTon] = useState<string>("");
+  const [depositStatusText, setDepositStatusText] = useState<string>("");
+  const [isDepositPending, setIsDepositPending] = useState<boolean>(false);
+  const [tonConnectUI] = useTonConnectUI();
+  const adminWallet = useTonWallet();
+  const adminWalletAddress = useTonAddress();
 
   async function loadUsers(token = adminToken) {
     setIsLoading(true);
@@ -76,6 +103,52 @@ function AdminPanel() {
       setStatusText(error instanceof Error ? error.message : "Admin request failed");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleAdminPayout() {
+    if (!adminWalletAddress) {
+      setDepositStatusText("Connect an admin TON wallet first.");
+      return;
+    }
+
+    const targetAddress = depositWalletAddress.trim();
+    if (!targetAddress) {
+      setDepositStatusText("Recipient wallet address is required.");
+      return;
+    }
+
+    let amountNano = "";
+    try {
+      amountNano = parseTonAmountToNano(depositAmountTon);
+    } catch (error) {
+      setDepositStatusText(error instanceof Error ? error.message : "Amount is invalid.");
+      return;
+    }
+
+    setIsDepositPending(true);
+    setDepositStatusText("");
+
+    try {
+      await tonConnectUI.sendTransaction({
+        validUntil: Math.floor(Date.now() / 1000) + 300,
+        messages: [
+          {
+            address: targetAddress,
+            amount: amountNano,
+          },
+        ],
+      });
+      setDepositStatusText(
+        `Transaction request sent: ${depositAmountTon.trim()} TON -> ${shortenAddress(targetAddress)}.`,
+      );
+      setDepositAmountTon("");
+    } catch (error) {
+      setDepositStatusText(
+        error instanceof Error ? error.message : "TON payout request failed",
+      );
+    } finally {
+      setIsDepositPending(false);
     }
   }
 
@@ -103,26 +176,94 @@ function AdminPanel() {
           </p>
         </div>
 
-        <div className="admin-token-box">
-          <label htmlFor="admin-token">Admin token</label>
-          <input
-            id="admin-token"
-            onChange={(event) => {
-              const value = event.target.value;
-              setAdminToken(value);
-              saveAdminToken(value);
-            }}
-            placeholder="X-Admin-Token"
-            type="password"
-            value={adminToken}
-          />
-          <button onClick={() => void loadUsers()} type="button">
-            Refresh
-          </button>
+        <div className="admin-controls">
+          <div className="admin-token-box">
+            <label htmlFor="admin-token">Admin token</label>
+            <input
+              id="admin-token"
+              onChange={(event) => {
+                const value = event.target.value;
+                setAdminToken(value);
+                saveAdminToken(value);
+              }}
+              placeholder="X-Admin-Token"
+              type="password"
+              value={adminToken}
+            />
+            <button onClick={() => void loadUsers()} type="button">
+              Refresh
+            </button>
+          </div>
+
+          <div className="admin-deposit-rail">
+            <div className="admin-wallet-box">
+              <span className="admin-wallet-box__label">Admin wallet</span>
+              <TonConnectButton />
+              <span className={`chip ${adminWallet ? "chip--ok" : "chip--warn"}`}>
+                {adminWalletAddress ? shortenAddress(adminWalletAddress) : "wallet required"}
+              </span>
+            </div>
+
+            <button
+              className="primary-button admin-deposit-toggle"
+              onClick={() => setIsDepositOpen((current) => !current)}
+              type="button"
+            >
+              Деп
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="admin-workspace">
+        {isDepositOpen ? (
+          <section className="admin-deposit-card">
+            <div className="admin-panel__head">
+              <div>
+                <p className="section-tag">Admin payout</p>
+                <h2>Send TON from connected wallet</h2>
+              </div>
+              <span className={`chip ${isDepositPending ? "chip--warn" : "chip--ok"}`}>
+                {isDepositPending ? "awaiting wallet" : "ready"}
+              </span>
+            </div>
+
+            <div className="admin-deposit-form">
+              <label className="admin-field">
+                <span>Recipient wallet</span>
+                <input
+                  onChange={(event) => setDepositWalletAddress(event.target.value)}
+                  placeholder="UQ... or EQ..."
+                  type="text"
+                  value={depositWalletAddress}
+                />
+              </label>
+
+              <label className="admin-field">
+                <span>Amount TON</span>
+                <input
+                  inputMode="decimal"
+                  onChange={(event) => setDepositAmountTon(event.target.value)}
+                  placeholder="0.25"
+                  type="text"
+                  value={depositAmountTon}
+                />
+              </label>
+
+              <button
+                className="primary-button"
+                disabled={isDepositPending}
+                onClick={() => void handleAdminPayout()}
+                type="button"
+              >
+                {isDepositPending ? "Confirm in wallet" : "Send TON"}
+              </button>
+            </div>
+
+            {depositStatusText ? <p className="admin-deposit-status">{depositStatusText}</p> : null}
+          </section>
+        ) : null}
+
         <section className="admin-metrics">
           <article>
             <span>Total rows</span>

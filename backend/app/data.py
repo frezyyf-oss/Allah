@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from datetime import datetime, timezone
+from pathlib import Path
 from random import SystemRandom
 from typing import Iterable
 from uuid import uuid4
@@ -11,6 +13,8 @@ from pydantic import BaseModel
 
 SYSTEM_RANDOM = SystemRandom()
 NANOTONS = Decimal("1000000000")
+STORAGE_DIR = Path(__file__).resolve().parents[1] / "storage"
+USER_REGISTRY_PATH = STORAGE_DIR / "users.json"
 
 
 class GiftItem(BaseModel):
@@ -146,7 +150,45 @@ ROULETTE_SEGMENTS: list[RouletteSegment] = [
 ]
 
 
-USER_REGISTRY: dict[str, AdminUserRecord] = {}
+def load_user_registry() -> dict[str, AdminUserRecord]:
+    if not USER_REGISTRY_PATH.exists():
+        return {}
+    try:
+        payload = json.loads(USER_REGISTRY_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(payload, list):
+        return {}
+
+    records: dict[str, AdminUserRecord] = {}
+    for item in payload:
+        try:
+            record = AdminUserRecord.model_validate(item)
+        except ValueError:
+            continue
+        records[record.wallet_address.strip().lower()] = record
+    return records
+
+
+def save_user_registry() -> None:
+    STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    payload = [
+        record.model_dump(mode="json")
+        for record in sorted(
+            USER_REGISTRY.values(),
+            key=lambda item: item.last_seen_at,
+            reverse=True,
+        )
+    ]
+    temporary_path = USER_REGISTRY_PATH.with_suffix(".json.tmp")
+    temporary_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    temporary_path.replace(USER_REGISTRY_PATH)
+
+
+USER_REGISTRY: dict[str, AdminUserRecord] = load_user_registry()
 
 
 def list_catalog() -> list[GiftItem]:
@@ -210,6 +252,7 @@ def upsert_user_record(
         last_seen_at=now,
     )
     USER_REGISTRY[key] = record
+    save_user_registry()
     return record
 
 

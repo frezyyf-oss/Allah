@@ -590,6 +590,11 @@ code {
   line-height: 1.6;
 }
 
+.admin-controls {
+  display: grid;
+  gap: 14px;
+}
+
 .admin-token-box {
   display: grid;
   gap: 10px;
@@ -627,11 +632,92 @@ code {
   cursor: pointer;
 }
 
+.admin-deposit-rail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.admin-wallet-box {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-wallet-box__label {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.72rem;
+}
+
+.admin-deposit-toggle {
+  min-width: 118px;
+}
+
 .admin-workspace {
   position: relative;
   z-index: 1;
   display: grid;
   gap: 18px;
+}
+
+.admin-deposit-card {
+  padding: 22px;
+  border-radius: 28px;
+  border: 1px solid var(--panel-border);
+  background: rgba(10, 16, 23, 0.82);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22px);
+  animation: rise 0.58s ease both;
+}
+
+.admin-deposit-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(180px, 0.8fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.admin-field {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-field span {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+}
+
+.admin-field input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  color: #f4f6fb;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  outline: none;
+}
+
+.admin-field input:focus {
+  border-color: rgba(140, 255, 220, 0.52);
+}
+
+.admin-deposit-status {
+  margin: 14px 0 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .admin-metrics {
@@ -775,6 +861,10 @@ code {
   .admin-metrics {
     grid-template-columns: 1fr 1fr;
   }
+
+  .admin-deposit-form {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -817,8 +907,16 @@ code {
     grid-template-columns: 1fr;
   }
 
+  .admin-deposit-rail {
+    grid-template-columns: 1fr;
+  }
+
   .admin-topbar,
   .admin-panel {
+    padding: 18px;
+  }
+
+  .admin-deposit-card {
     padding: 18px;
   }
 
